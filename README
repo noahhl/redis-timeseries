@@ -1,3 +1,8 @@
+Different in this fork:
+* Adds a RedisTimeSeries::aggregate function that gathers all of the keys in the time series for the <code>history</code> period and creates a new key according to the specified aggregation with is stored as <code>#{key_for_timeseries}:#{history}</code>, and sets that to expire according to <code>ttl</code>. This is used for storing different levels of aggregation in the statsd/graphite style.
+* <code>fetch_range</code> updated to provdie the most granular view possible from a timeseries and it's historical aggregates.
+* Gem'ified
+
 Redis timeseries README
 =======================
 

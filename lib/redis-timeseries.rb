@@ -1,19 +1,37 @@
+require 'rubygems'
+require 'redis'
 require 'base64'
 
+class Array
+  
+ def sum
+   inject( nil ) { |sum,x| sum ? sum+x : x }; 
+ end
+
+ def mean
+   self.sum / self.length
+ end
+ 
+ def median
+   self.sort[self.length/2]
+ end
+end
+
 class RedisTimeSeries
-    def initialize(prefix,timestep,redis)
+    def initialize(prefix, timestep, redis, expires=nil)
         @prefix = prefix
         @timestep = timestep
         @redis = redis
+        @expires= expires
     end
 
-    def normalize_time(t)
+    def normalize_time(t, step=@timestep)
         t = t.to_i
-        t - (t % @timestep)
+        t - (t % step)
     end
 
-    def getkey(t)
-        "ts:#{@prefix}:#{normalize_time t}"
+    def getkey(t, step=@timestep)
+        "ts:#{@prefix}:#{normalize_time(t, step)}"
     end
 
     def tsencode(data)
@@ -32,14 +50,33 @@ class RedisTimeSeries
         end
     end
 
-    def add(data,origin_time=nil)
+    def compute_value_for_key(data, now, origin_time=nil)
         data = tsencode(data)
         origin_time = tsencode(origin_time) if origin_time
-        now = Time.now.to_f
         value = "#{now}\x01#{data}"
         value << "\x01#{origin_time}" if origin_time
         value << "\x00"
-        @redis.append(getkey(now.to_i),value)
+        return value
+    end
+
+    def add(data, origin_time=nil)
+        now = Time.now.to_f
+        value = compute_value_for_key(data, now, origin_time)
+        if @expires.nil?
+          @redis.append(getkey(now.to_i),value)
+        else
+            @redis.append(getkey(now.to_i),value)       
+            @redis.expire(getkey(now.to_i), @expires)
+        end
+    end
+
+    def aggregate(history, ttl, aggregation = 'mean')
+        now = Time.now.to_f
+        start_time = now - history
+        aggregate_value = fetch_range(start_time, now).collect{|d| d[:data].to_f}.method(aggregation).call rescue nil
+        unless aggregate_value.nil?
+          @redis.setex("#{getkey(now.to_i, history)}:#{history}", ttl, compute_value_for_key(aggregate_value.to_s, now))
+        end
     end
 
     def decode_record(r)
@@ -59,7 +96,7 @@ class RedisTimeSeries
         best_start = nil
         best_time = nil
         rangelen = 64
-        key = getkey(time.to_i)
+        key = @redis.keys("#{getkey(time.to_i)}*").min
         len = @redis.strlen(key)
         return 0 if len == 0
         min = 0
@@ -117,6 +154,7 @@ class RedisTimeSeries
     end
 
     def produce_result(res,key,range_begin,range_end)
+        key = @redis.keys("#{key}*").min
         r = @redis.getrange(key,range_begin,range_end)
         if r
             s = r.split("\x00")
@@ -134,7 +172,6 @@ class RedisTimeSeries
         begin_off = seek(begin_time)
         end_off = seek(end_time)
         if begin_key == end_key
-            # puts "#{begin_off} #{end_off} #{begin_key}"
             produce_result(res,begin_key,begin_off,end_off-1)
         else
             produce_result(res,begin_key,begin_off,-1)
@@ -157,3 +194,4 @@ class RedisTimeSeries
         res
     end
 end
+
