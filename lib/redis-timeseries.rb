@@ -153,9 +153,14 @@ class RedisTimeSeries
         end
     end
 
-    def produce_result(res,key,range_begin,range_end, strict=false)
+    def produce_result(res,key,range_begin,range_end, strict=false, dupe_check = true)
         unless strict
             key = @redis.keys("#{key}*").min
+            if dupe_check
+              if check_overlap(key) 
+                return []
+              end
+            end
         end
         r = @redis.getrange(key,range_begin,range_end)
         if r
@@ -194,6 +199,25 @@ class RedisTimeSeries
         key = getkey(time)
         produce_result(res,key,0,-1, strict)
         res
+    end
+
+    def check_overlap(key)
+      overlap = false
+      unless key.nil?  
+        start_time = key.split(":")[-2].to_i - key.split(":")[-1].to_i
+        end_time = key.split(":")[-2].to_i
+        if start_time >0
+          t = start_time
+          while t < end_time
+            unless produce_result([], getkey(t), 0, -1, strict=false, dupe_check=false).empty?
+              overlap = true
+              break
+            end
+            t += @timestep
+          end
+        end
+      end
+      overlap
     end
 end
 
