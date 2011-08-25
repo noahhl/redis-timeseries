@@ -173,23 +173,27 @@ class RedisTimeSeries
     end
 
     def fetch_range(begin_time,end_time, strict=false)
+        puts 'You called the right one'
         res = []
-        begin_key = getkey(begin_time)
-        end_key = getkey(end_time)
+        time_range = [begin_time.to_s, end_time.to_s]
+        common_time = time_range[0].slice(0,(0...time_range[0].size).find {|i| time_range.map {|s| s[i..i]}.uniq.size > 1})
+        keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
+
+        begin_index = keys_in_set.index{|k| k >= getkey(begin_time)}
+        end_index = keys_in_set.reverse.index{|k| k <= getkey(end_time)}
+        keys = [getkey(begin_time)] + keys_in_set[begin_index..end_index] + [getkey(end_time)]
+
         begin_off = seek(begin_time)
         end_off = seek(end_time)
-        if begin_key == end_key
-            produce_result(res,begin_key,begin_off,end_off-1, strict)
+        if keys.first == keys.last
+            produce_result(res,keys.first,begin_off,end_off-1, strict)
         else
-            produce_result(res,begin_key,begin_off,-1, strict)
-            t = normalize_time(begin_time)
-            while true
-                t += @timestep
-                key = getkey(t)
-                break if key == end_key
+            produce_result(res,keys.first,begin_off,-1, strict)
+            keys.each do |key|
+                break if key == keys.last
                 produce_result(res,key,0,-1, strict)
             end
-            produce_result(res,end_key,0,end_off-1, strict)
+            produce_result(res,keys.last,0,end_off-1, strict)
         end
         res
     end
