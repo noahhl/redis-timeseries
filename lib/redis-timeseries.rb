@@ -173,14 +173,13 @@ class RedisTimeSeries
     end
 
     def fetch_range(begin_time,end_time, strict=false)
-        puts 'You called the right one'
         res = []
         time_range = [begin_time.to_s, end_time.to_s]
         common_time = time_range[0].slice(0,(0...time_range[0].size).find {|i| time_range.map {|s| s[i..i]}.uniq.size > 1})
         keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
 
         begin_index = keys_in_set.index{|k| k >= getkey(begin_time)}
-        end_index = keys_in_set.reverse.index{|k| k <= getkey(end_time)}
+        end_index = keys_in_set.index{|k| k == keys_in_set.reverse.find{|k| k <= getkey(end_time)}}
         keys = [getkey(begin_time)] + keys_in_set[begin_index..end_index] + [getkey(end_time)]
 
         begin_off = seek(begin_time)
