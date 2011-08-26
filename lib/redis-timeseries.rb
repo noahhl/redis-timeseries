@@ -211,7 +211,7 @@ class RedisTimeSeries
         start_time = key.split(":")[-2].to_i - key.split(":")[-1].to_i
         end_time = key.split(":")[-2].to_i
         if start_time >0
-          t = start_timei
+          t = start_time
           while t < end_time
             unless produce_result([], getkey(t), 0, -1, strict=false, dupe_check=false).empty?
               overlap = true
