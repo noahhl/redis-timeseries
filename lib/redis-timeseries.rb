@@ -181,7 +181,7 @@ class RedisTimeSeries
 
         begin_index = keys_in_set.index{|k| k >= getkey(begin_time)}
         end_index = keys_in_set.index{|k| k == keys_in_set.reverse.find{|k| k <= getkey(end_time)}}
-        keys = [getkey(begin_time)] + keys_in_set[begin_index..end_index] + [getkey(end_time)]
+        keys = ([getkey(begin_time)] + keys_in_set[begin_index..end_index] + [getkey(end_time)]).uniq
 
         begin_off = seek(begin_time)
         end_off = seek(end_time)
