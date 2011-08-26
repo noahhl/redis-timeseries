@@ -2,14 +2,14 @@ require 'rubygems'
 require 'redis'
 require 'base64'
 
-class Array
+class Array 
   
- def sum
+ def array_sum
    inject( nil ) { |sum,x| sum ? sum+x : x }; 
  end
 
  def mean
-   self.sum / self.length
+   self.array_sum / self.length
  end
  
  def median
@@ -71,6 +71,7 @@ class RedisTimeSeries
     end
 
     def aggregate(history, ttl, aggregation = 'mean')
+        aggregation = (aggregation == "sum") ? "array_sum" :  aggregation
         start_time = normalize_time(Time.now.to_f, history)      
         end_time = start_time + history
         aggregate_value = fetch_range(start_time, end_time, strict=true).collect{|d| d[:data].to_f}.method(aggregation).call rescue nil
