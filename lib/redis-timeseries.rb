@@ -189,6 +189,7 @@ class RedisTimeSeries
             produce_result(res,keys.first,begin_off,end_off-1, strict)
         else
             produce_result(res,keys.first,begin_off,-1, strict)
+            keys.shift
             keys.each do |key|
                 break if key == keys.last
                 produce_result(res,key,0,-1, strict)
@@ -211,7 +212,7 @@ class RedisTimeSeries
         start_time = key.split(":")[-2].to_i - key.split(":")[-1].to_i
         end_time = key.split(":")[-2].to_i
         if start_time >0
-          t = start_time
+          t = start_timei
           while t < end_time
             unless produce_result([], getkey(t), 0, -1, strict=false, dupe_check=false).empty?
               overlap = true
