@@ -188,8 +188,7 @@ class RedisTimeSeries
         if keys.first == keys.last
             produce_result(res,keys.first,begin_off,end_off-1, strict)
         else
-            produce_result(res,keys.first,begin_off,-1, strict)
-            keys.shift
+            produce_result(res,keys.shift,begin_off,-1, strict)
             keys.each do |key|
                 break if key == keys.last
                 produce_result(res,key,0,-1, strict)
