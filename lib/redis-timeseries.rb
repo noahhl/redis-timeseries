@@ -23,6 +23,7 @@ class RedisTimeSeries
         @timestep = timestep
         @redis = redis
         @expires= expires
+        @suffix = ""
     end
 
     def normalize_time(t, step=@timestep)
@@ -176,7 +177,16 @@ class RedisTimeSeries
         res = []
         time_range = [begin_time.to_s, end_time.to_s]
         common_time = time_range[0].slice(0,(0...time_range[0].size).find {|i| time_range.map {|s| s[i..i]}.uniq.size > 1})
-        keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
+        (end_time.to_s.length - common_time.length).times {common_time += "?"}
+        if strict
+          keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}#{@suffix}").sort
+        else
+          keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
+        end
+        
+        if keys_in_set.empty?
+          return []
+        end
 
         begin_index = keys_in_set.index{|k| k >= getkey(begin_time)}
         end_index = keys_in_set.index{|k| k == keys_in_set.reverse.find{|k| k <= getkey(end_time)}}
@@ -194,7 +204,19 @@ class RedisTimeSeries
             end
             produce_result(res,keys.last,0,end_off-1, strict)
         end
+        @suffix = ""
         res
+    end
+
+    def fetch_consistent_range(begin_time, end_time, retentions)
+      histories = retentions.split(",").collect{|r| i,n = r.split(":"); i.to_i * n.to_i }
+      history_to_use =  histories.index{|h| h >= (Time.now.to_i - begin_time)}
+      
+      unless history_to_use.zero? #Within most granular, no suffix range.
+        @suffix = ":#{retentions.split(",")[history_to_use].split(":")[0]}"
+      end
+      fetch_range(begin_time, end_time, strict=true)
+
     end
 
     def fetch_timestep(time, strict=false)
