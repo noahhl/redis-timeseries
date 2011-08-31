@@ -97,7 +97,7 @@ class RedisTimeSeries
         best_start = nil
         best_time = nil
         rangelen = 64
-        key = @keys_in_set.find_all{|k| k.match("#{getkey(time.to_i)}.*?")}.min 
+        key = @redis.keys("#{getkey(time.to_i)}*").min
         len = @redis.strlen(key)
         return 0 if len == 0
         min = 0
