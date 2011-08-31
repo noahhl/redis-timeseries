@@ -23,6 +23,7 @@ class RedisTimeSeries
         @timestep = timestep
         @redis = redis
         @expires= expires
+        @keys_in_set = []
     end
 
     def normalize_time(t, step=@timestep)
@@ -156,7 +157,7 @@ class RedisTimeSeries
 
     def produce_result(res,key,range_begin,range_end, strict=false, dupe_check = true)
         unless strict
-            key = @redis.keys("#{key}*").min
+            key = @keys_in_set.find_all{|k| k.match("#{key}.*?")}.min 
             if dupe_check
               if check_overlap(key) 
                 return []
@@ -177,11 +178,11 @@ class RedisTimeSeries
         res = []
         time_range = [begin_time.to_s, end_time.to_s]
         common_time = time_range[0].slice(0,(0...time_range[0].size).find {|i| time_range.map {|s| s[i..i]}.uniq.size > 1})
-        keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
+        @keys_in_set = @redis.keys("ts:#{@prefix}:#{common_time}*").sort
 
-        begin_index = keys_in_set.index{|k| k >= getkey(begin_time)}
-        end_index = keys_in_set.index{|k| k == keys_in_set.reverse.find{|k| k <= getkey(end_time)}}
-        keys = ([getkey(begin_time)] + keys_in_set[begin_index..end_index] + [getkey(end_time)]).uniq
+        begin_index = @keys_in_set.index{|k| k >= getkey(begin_time)}
+        end_index = @keys_in_set.index{|k| k == @keys_in_set.reverse.find{|k| k <= getkey(end_time)}}
+        keys = ([getkey(begin_time)] + @keys_in_set[begin_index..end_index] + [getkey(end_time)]).uniq
 
         begin_off = seek(begin_time)
         end_off = seek(end_time)
