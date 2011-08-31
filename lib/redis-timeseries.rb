@@ -66,8 +66,7 @@ class RedisTimeSeries
         if @expires.nil?
           @redis.append(getkey(now.to_i),value)
         else
-            @redis.append(getkey(now.to_i),value)       
-            @redis.expire(getkey(now.to_i), @expires)
+            @redis.setex(getkey(now.to_i),@expires, value)
         end
     end
 
