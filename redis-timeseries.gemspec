@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "redis-timeseries"
-  s.version     = "0.0.3"
+  s.version     = "0.0.4"
   s.platform    = Gem::Platform::RUBY
   s.summary     = "Implementation of redis-timeseries for use as a statsd data store"
   s.require_paths = ["lib"]

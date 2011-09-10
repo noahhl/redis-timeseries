@@ -72,8 +72,8 @@ class RedisTimeSeries
 
     def aggregate(history, ttl, aggregation = 'mean')
         aggregation = (aggregation == "sum") ? "array_sum" :  aggregation
-        start_time = normalize_time(Time.now.to_f, history)      
-        end_time = start_time + history
+        end_time = normalize_time(Time.now.to_f, history)      
+        start_time = end_time - history
         aggregate_value = fetch_range(start_time, end_time, strict=true).collect{|d| d[:data].to_f}.method(aggregation).call rescue nil
         unless aggregate_value.nil?
           @redis.setex("#{getkey(end_time, history)}:#{history}", ttl, compute_value_for_key(aggregate_value.to_s, end_time))
